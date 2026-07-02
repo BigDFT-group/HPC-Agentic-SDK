@@ -22,5 +22,5 @@ Stable facts:
 - `v100`, `v100l`, and `v100xl`: NVIDIA V100 GPU partitions.
 - Jobs use Bridge scripts: `#MSUB` directives plus `ccc_msub`.
 - Parallel work is launched with `ccc_mprun`.
-- `-q <partition>`, `-A <project>`, and `-m <filesystems>` are mandatory for job submission.
+- `-q <partition>`, `-A <project>`, and `-m <filesystems>` are mandatory for job submission. Always call `get_projects` and ask the user when the project is not explicitly specified.
 - Avoid frequent scheduler polling; do not use `watch` on scheduler commands.

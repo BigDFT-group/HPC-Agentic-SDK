@@ -48,6 +48,67 @@ def _parse_ccc_msub_job_id(output: str) -> str:
     return ""
 
 
+def _parse_compuse_projects(output: str) -> list[dict[str, str | None]]:
+    projects = []
+    seen = set()
+    for line in output.splitlines():
+        parts = line.split()
+        if not parts:
+            continue
+        token = parts[0]
+        if "@" not in token or token.lower().startswith("account"):
+            continue
+        project, partition = token.split("@", 1)
+        key = (project, partition)
+        if key in seen:
+            continue
+        seen.add(key)
+        projects.append({
+            "id": project,
+            "partition": partition,
+            "account": token,
+            "status": " ".join(parts[1:]) if len(parts) > 1 else None,
+        })
+    return projects
+
+
+def _available_projects() -> list[dict[str, str | None]]:
+    return _parse_compuse_projects(run_command("ccc_compuse", raise_errors=False))
+
+
+def _format_projects(projects: list[dict[str, str | None]]) -> str:
+    if not projects:
+        return "No projects could be parsed from ccc_compuse."
+    return ", ".join(
+        f"{p['id']}@{p['partition']}" + (f" ({p['status']})" if p.get("status") else "")
+        for p in projects
+    )
+
+
+def _validate_account(spec: JobSpec) -> str:
+    account = spec.attributes.account
+    projects = _available_projects()
+    if not account:
+        raise ValueError(
+            "JobSpec.attributes.account is required on Irene. "
+            "Call get_projects first and ask the user which TGCC project to charge. "
+            f"Available projects: {_format_projects(projects)}"
+        )
+    matching = [p for p in projects if p["id"] == account]
+    if not matching:
+        raise ValueError(
+            f"Project '{account}' is not available to the current user according to ccc_compuse. "
+            f"Available projects: {_format_projects(projects)}"
+        )
+    partition = spec.attributes.queue_name
+    if not any(p["partition"] == partition for p in matching):
+        raise ValueError(
+            f"Project '{account}' is not available on partition '{partition}' according to ccc_compuse. "
+            f"Available entries for this project: {_format_projects(matching)}"
+        )
+    return account
+
+
 def _job_from_mpp_line(line: str) -> Job | None:
     parts = line.split()
     if len(parts) < 8 or not parts[2].isdigit():
@@ -118,7 +179,7 @@ class BridgeBackend(SchedulerBackend):
     def _header(self, spec: JobSpec) -> list[str]:
         attr = spec.attributes
         res = spec.resources
-        account = attr.account or config.default_account()
+        account = _validate_account(spec)
         filesystems = (
             attr.custom_attributes.get("filesystems")
             or attr.custom_attributes.get("m")
@@ -139,8 +200,7 @@ class BridgeBackend(SchedulerBackend):
             lines.append(f"#MSUB -N {res.node_count}")
         if res.exclusive_node_use:
             lines.append("#MSUB -x")
-        if account:
-            lines.append(f"#MSUB -A {account}")
+        lines.append(f"#MSUB -A {account}")
         if spec.stdout_path:
             lines.append(f"#MSUB -o {spec.stdout_path}")
         else:

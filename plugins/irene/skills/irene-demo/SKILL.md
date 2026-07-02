@@ -14,14 +14,16 @@ Demo sequence:
 2. Call `get_resources`; show current partition status from `ccc_mpinfo`.
 3. Call `search_docs("How do I submit a CPU MPI job on Irene?")`; mention BM25 if indicated.
 4. Call `fs_ls(".")` to verify filesystem access.
-5. If the user agrees to consume a tiny allocation, submit a short CPU job:
+5. If the user agrees to consume a tiny allocation, call `get_projects` and ask
+   which project to charge if they have not already specified one. Then submit a
+   short CPU job with the selected project explicitly set:
 
 ```json
 {
   "name": "irene-demo",
   "executable": "hostname && echo BRIDGE_MSUB_JOBID=$BRIDGE_MSUB_JOBID",
   "resources": {"process_count": 1},
-  "attributes": {"duration": 300, "queue_name": "rome"}
+  "attributes": {"duration": 300, "queue_name": "rome", "account": "<selected-project>"}
 }
 ```
 

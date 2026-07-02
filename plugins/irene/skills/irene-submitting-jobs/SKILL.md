@@ -8,17 +8,23 @@ description: Use when the user wants to run, submit, or launch a job on TGCC Ire
 Default to a CPU/MPI job on `rome` unless the user clearly needs GPUs or large
 single-node memory.
 
+Before building or submitting a JobSpec, make the project explicit:
+
+1. If the user already named a TGCC project, use it as `attributes.account`.
+2. If no project was named, call `get_projects` first and ask the user which available project/partition entry to charge.
+3. Do not rely on the configured default account for submission; the backend rejects missing or unavailable projects.
+
 Build JobSpecs around Bridge concepts:
 
 - `attributes.queue_name`: `rome`, `xlarge`, `v100`, `v100l`, `v100l-os`, or `v100xl`.
-- `attributes.account`: TGCC project for `-A`; falls back to config.
+- `attributes.account`: explicit TGCC project for `-A`; required and validated before submission.
 - `attributes.custom_attributes.filesystems`: optional override for Bridge `-m`.
 - `resources.process_count`: total tasks for `-n`.
 - `resources.cpu_cores_per_process`: cores per task for `-c`.
 - `attributes.duration`: seconds or `HH:MM:SS`; rendered as seconds for `-T`.
 - `launcher`: usually `ccc_mprun` for MPI or threaded work. The backend supplies it automatically for multi-task jobs.
 
-Typical MPI JobSpec:
+Typical MPI JobSpec, after the user has selected project `gen12345`:
 
 ```json
 {
@@ -30,7 +36,7 @@ Typical MPI JobSpec:
 }
 ```
 
-Typical hybrid MPI/OpenMP JobSpec:
+Typical hybrid MPI/OpenMP JobSpec, after the user has selected project `gen12345`:
 
 ```json
 {

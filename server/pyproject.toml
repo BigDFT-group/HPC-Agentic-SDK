@@ -12,6 +12,7 @@ dependencies = [
     "remotemanager",
     "httpx",
     "numpy",
+    "pydantic",
 ]
 
 [project.scripts]

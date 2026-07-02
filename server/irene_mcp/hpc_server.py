@@ -117,7 +117,12 @@ def _parse_projects(output: str) -> list[dict]:
             if key in seen:
                 continue
             seen.add(key)
-            projects.append({"id": project, "partition": partition, "account": token})
+            projects.append({
+                "id": project,
+                "partition": partition,
+                "account": token,
+                "status": " ".join(parts[1:]) if len(parts) > 1 else None,
+            })
         elif len(parts) >= 3 and parts[0].lower() == "account" and parts[1].lower() == "status":
             continue
     return projects
@@ -144,7 +149,7 @@ def get_project(project_id: str) -> dict:
     """
     projects = get_projects()
     for p in projects:
-        if p["id"] == project_id:
+        if p.get("id") == project_id:
             return p
     raise ValueError(f"Project '{project_id}' not found for current user")
 
@@ -159,8 +164,8 @@ def submit_job(spec: JobSpec, resource_id: str = RESOURCE_ID) -> dict:
     the cluster for auditability) and submitted. Returns the job_id and the
     script path. Irene notes: attributes.queue_name picks the partition
     (rome for CPU work, xlarge for large-memory work, v100/v100l/v100xl for GPU work); attributes.account
-    (a TGCC project ID) is required and falls back to the configured
-    default; describe CPU work with resources.processes_per_node (MPI ranks)
+    (a TGCC project ID) must be explicitly supplied and is checked against
+    get_projects/ccc_compuse before submission; describe CPU work with resources.processes_per_node (MPI ranks)
     and cpu_cores_per_process (threads); executable may be a shell line such as
     'module load mpi/openmpi && ccc_mprun ./a.out'.
     """

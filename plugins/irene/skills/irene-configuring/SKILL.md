@@ -25,9 +25,10 @@ password, set `ssh.passfile` to the local file containing it, such as
 `/tmp/irene`. Access details are in site/project documentation, not in the public
 guide.
 
-Ask for the default project ID used with Bridge `-A`. Irene requires a project
-for job submission. A JobSpec can still override it per job with
-`attributes.account`.
+You may store a remembered project ID in `account`, but job submission must not
+use it silently. Every JobSpec must include an explicit `attributes.account`; if
+the user has not specified one, call `get_projects` and ask which available
+project to charge before submitting.
 
 Set `filesystems` to the default Bridge `-m` value. Irene job submissions must
 declare filesystems. Use `scratch,work` for ordinary jobs, `scratch,store` for

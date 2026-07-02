@@ -82,7 +82,7 @@ class JobAttributes(BaseModel):
         description="Wall time as integer seconds or HH:MM:SS / D-HH:MM:SS string (Irene default is 7200 seconds)",
     )
     queue_name: str = Field("rome", description="Bridge partition (rome, xlarge, v100, v100l, v100xl, v100l-os)")
-    account: str | None = Field(None, description="TGCC project ID for Bridge -A; falls back to the configured default")
+    account: str | None = Field(None, description="TGCC project ID for Bridge -A; must be explicit and available to the user")
     reservation_id: str | None = Field(None, description="Reservation name, passed through as a custom scheduler option when supported")
     custom_attributes: dict[str, str] = Field(default_factory=dict, description="Extra Bridge #MSUB options; use key 'm' or 'filesystems' to override -m")
 

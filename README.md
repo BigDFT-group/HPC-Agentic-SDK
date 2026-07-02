@@ -22,7 +22,7 @@ Settings live in `~/.irene/config.json`:
 
 - `ssh.host` is a `~/.ssh/config` alias or TGCC-provided `user@host`. `IRENE_HOST` overrides it.
 - `ssh.passfile` is an optional remotemanager password file, for example `/tmp/irene`. `IRENE_PASSFILE` overrides it.
-- `account` is the TGCC project used for Bridge `-A`. `IRENE_ACCOUNT` overrides it.
+- `account` is only a remembered project value for configuration workflows. Job submissions must still set `attributes.account` explicitly; the backend validates it against `ccc_compuse`.
 - `filesystems` is the default Bridge `-m` value. Irene job submissions must declare filesystems. `IRENE_FILESYSTEMS` overrides it.
 
 Docs search works offline with BM25 over the packaged guide.
