@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "irene-mcp"
+version = "0.1.0"
+description = "MCP servers for the TGCC Irene supercomputer: Bridge/Slurm interaction and documentation search."
+requires-python = ">=3.10"
+dependencies = [
+    "mcp",
+    "remotemanager",
+    "httpx",
+    "numpy",
+]
+
+[project.scripts]
+irene-hpc-mcp = "irene_mcp.hpc_server:main"
+irene-docs-mcp = "irene_mcp.docs_server:main"
+irene-doctor = "irene_mcp.doctor:main"
+
+[tool.setuptools.packages.find]
+include = ["irene_mcp*"]
+
+[tool.setuptools.package-data]
+irene_mcp = [
+    "data/*.json",
+    "data/*.md",
+    "data/docs_index/*",
+]

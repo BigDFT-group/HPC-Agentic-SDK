@@ -1,0 +1,9 @@
+{
+  "name": "irene",
+  "description": "Interact with the TGCC Irene supercomputer: submit and monitor Bridge/Slurm jobs, manage files on the cluster, and search the built-in TGCC Irene guide.",
+  "version": "0.1.0",
+  "author": {
+    "name": "HPC-Agents maintainers"
+  },
+  "keywords": ["hpc", "slurm", "bridge", "tgcc", "cea", "irene", "supercomputer"]
+}

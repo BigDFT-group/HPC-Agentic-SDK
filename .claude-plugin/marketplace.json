@@ -1,0 +1,13 @@
+{
+  "name": "irene-marketplace",
+  "owner": {
+    "name": "HPC-Agents maintainers"
+  },
+  "plugins": [
+    {
+      "name": "irene",
+      "source": "./plugins/irene",
+      "description": "Bridge/Slurm job management and documentation search for the TGCC Irene supercomputer."
+    }
+  ]
+}

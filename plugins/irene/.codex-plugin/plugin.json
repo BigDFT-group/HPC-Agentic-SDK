@@ -1,0 +1,25 @@
+{
+  "name": "irene",
+  "version": "0.1.0",
+  "description": "Interact with the TGCC Irene supercomputer: submit and monitor Bridge/Slurm jobs, manage files on the cluster, and search the built-in TGCC Irene guide.",
+  "author": {
+    "name": "HPC-Agents maintainers"
+  },
+  "repository": "https://github.com/CEA-HPC/Irene-Agent",
+  "keywords": ["hpc", "slurm", "bridge", "tgcc", "cea", "irene", "supercomputer"],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Irene",
+    "shortDescription": "Submit and monitor TGCC Irene jobs and search Irene docs.",
+    "longDescription": "Interact with the TGCC Irene supercomputer from Codex: submit and monitor Bridge/Slurm jobs, manage files on the cluster, and search the built-in Irene guide.",
+    "developerName": "HPC-Agents maintainers",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Write"],
+    "defaultPrompt": [
+      "Show Irene cluster status.",
+      "Submit a small Irene test job.",
+      "Search the Irene guide."
+    ]
+  }
+}

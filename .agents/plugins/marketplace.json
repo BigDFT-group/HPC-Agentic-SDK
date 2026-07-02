@@ -1,0 +1,20 @@
+{
+  "name": "irene-marketplace",
+  "interface": {
+    "displayName": "Irene"
+  },
+  "plugins": [
+    {
+      "name": "irene",
+      "source": {
+        "source": "local",
+        "path": "./plugins/irene"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

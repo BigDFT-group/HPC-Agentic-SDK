@@ -1,0 +1,28 @@
+{
+  "mcpServers": {
+    "irene-hpc": {
+      "command": "uv",
+      "args": [
+        "tool",
+        "run",
+        "--quiet",
+        "--from",
+        "git+https://github.com/CEA-HPC/Irene-Agent.git@main#subdirectory=server",
+        "irene-hpc-mcp"
+      ],
+      "env": {}
+    },
+    "irene-docs": {
+      "command": "uv",
+      "args": [
+        "tool",
+        "run",
+        "--quiet",
+        "--from",
+        "git+https://github.com/CEA-HPC/Irene-Agent.git@main#subdirectory=server",
+        "irene-docs-mcp"
+      ],
+      "env": {}
+    }
+  }
+}
