@@ -11,15 +11,15 @@ cover large-memory and GPU workloads.
 
 ## Included Plugins
 
-This marketplace currently distributes three plugins:
+This marketplace currently distributes two user-facing plugins:
 
 - `irene`: live TGCC Irene status, filesystem, job, and documentation tools.
 - `remotemanager`: RemoteManager Dataset campaign tools. The Python MCP server
   remains in the external `remotemanager-MCP` repository and is installed at
   launch time with `uv tool run`. User-specific paths are read from
   `~/.config/remotemanager-mcp/config.yaml`, not from marketplace metadata.
-- `hpc-agentic-marketplace`: maintenance guidance for adding or updating
-  plugins while keeping public metadata separate from user-local config URIs.
+
+Project-wide marketplace maintenance rules live in `AGENTS.md`.
 
 ## Configure
 
