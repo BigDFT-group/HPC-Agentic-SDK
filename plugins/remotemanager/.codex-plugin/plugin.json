@@ -1,6 +1,6 @@
 {
   "name": "remotemanager",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Create and manage RemoteManager Dataset campaigns on local and HPC computers, including TGCC Irene configurations.",
   "author": {
     "name": "HPC-Agents maintainers"
