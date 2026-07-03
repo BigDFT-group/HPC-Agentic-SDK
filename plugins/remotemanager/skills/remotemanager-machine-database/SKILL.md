@@ -12,7 +12,7 @@ Use this skill when an agent needs to create or update a machine database entry 
 Produce two coherent inputs for the MCP server:
 
 1. a machine YAML file in the machine database directory
-2. an optional `user_overrides.yaml` file keyed by host name
+2. an optional override file keyed by host name
 
 The machine YAML should describe reusable machine facts. The override file should carry user-specific or site-specific adjustments.
 
@@ -27,7 +27,7 @@ Put these in the machine YAML:
 - generic modules, preamble blocks, and interpreter names
 - machine- or application-level runtime roots that are broadly valid for users of that machine
 
-Put these in `user_overrides.yaml`:
+Put these in the override file:
 
 - `passfile`
 - user-specific `prefix` or install paths
@@ -39,7 +39,14 @@ Do not put private user credentials or one-off paths in the machine YAML.
 
 ## Machine YAML structure
 
-A machine file is keyed by top-level objects plus a `platforms:` mapping.
+A machine file has three conceptual parts:
+
+1. top-level template strings (referenced by platform entries)
+2. application entries (one per named environment)
+3. a `platforms:` mapping (one per execution mode)
+
+The filename stem becomes the `host` argument used with MCP tools:
+`irene.yaml` → `host="irene"`, `localhost.yaml` → `host="localhost"`.
 
 Minimal pattern:
 
@@ -82,16 +89,38 @@ platforms:
 
 ## Meaning of the sections
 
-- top-level `*_template` strings are referenced from `platforms.*.kwargs.template`
+- top-level `*_template` strings are referenced from `platforms.*.kwargs.template`; keys ending in `_template` are excluded from application lookup
 - top-level application entries such as `intel_oneapi_mpi` are selected by the MCP `application` argument
 - `platforms` entries define how the remote `Computer` is instantiated
-- `kwargs` is used to inject referenced top-level objects, especially templates
+- `kwargs` is used to inject referenced top-level objects, especially templates; if a `kwargs` value matches a top-level key, the top-level value is substituted
+
+## Minimal localhost example
+
+```yaml
+frontend_template: |
+  #!/bin/bash
+
+cpu_compile:
+  python_interpreter: python3
+
+platforms:
+  frontend:
+    host: localhost
+    submitter: bash
+    kwargs:
+      template: frontend_template
+```
+
+Use `host="localhost"`, `platform="frontend"`, `application="cpu_compile"` when creating campaigns against this file.
 
 ## Override file structure
 
-The preferred override file is `user_overrides.yaml` in the machine database directory. It is keyed by host name.
+The override file is keyed by host name. The preferred location is either:
 
-Example:
+- the path set in `config.yaml` under `overrides:`, or
+- `user_overrides.yaml` inside the machine database directory (auto-loaded when `overrides` is unset)
+
+The canonical structure uses explicit `platform:`, `application:`, and `combined:` sections:
 
 ```yaml
 localhost:
@@ -99,23 +128,22 @@ localhost:
     shell: bash
 
 irene:
-  project: gen12049
-  frontend:
-    host: irene
+  platform:
+    transport: scp
     passfile: /tmp/irene
-  batch:
-    host: irene
-    passfile: /tmp/irene
+  application:
+    remote_runtime_root: /scratch/$USER/custom-runtime
+  combined:
+    project: gen12345
 ```
 
-Supported forms under each host key:
+Semantics:
 
-- `platform:` merged into the resolved platform specs
-- `application:` merged into the resolved application specs
-- `combined:` merged after platform+application combination
-- platform-named sections such as `frontend:` or `batch:` merged into the resolved platform
-- application-named sections merged into the resolved application
-- plain scalar keys such as `project:` merged into `combined`
+- `platform:` is recursively merged into the resolved platform specs
+- `application:` is recursively merged into the resolved application specs
+- `combined:` is merged into the combined platform+application view used for runtime layout and account selection
+- plain scalar keys at the host level (e.g. `project: gen12345`) are treated the same as `combined:` entries
+- named platform sections (e.g. `frontend:`) and named application sections (e.g. `cpu_compile:`) are also supported and merged into their respective resolved specs
 
 ## Template placeholder syntax
 
@@ -153,7 +181,7 @@ For MCP campaigns, templates should normally expose:
 - scheduler/account fields such as `project`, `queue`, `filesystem` when the machine requires them
 - optional environment hooks such as `modules`, `module_preload`, `preamble`
 
-The exposed placeholder names become candidate `append_campaign_run(..., run_options=...)` keys through `dataset.url.args`.
+The exposed placeholder names become candidate `append_campaign_run(..., run_options=...)` keys through `dataset.url.args`. Use `describe_campaign_options` after campaign creation to see the exact list.
 
 ## Authoring checklist
 
@@ -164,14 +192,14 @@ Before finalizing a machine YAML:
 3. ensure the application provides `python_interpreter` if the remote Python is not implicit
 4. keep user-specific values out of the machine YAML when possible
 5. verify that required template placeholders correspond to the run options the campaign will need
-6. test promotion with `get_machine_context(...)` and `build_computer(...)`
-7. test `dataset.url.test_connection()` on a live campaign when remote connectivity matters
+6. use `describe_computer(host, platform, application)` to inspect the resolved spec and applied overrides
+7. use `test_campaign_connection` to validate live connectivity before submitting real jobs
 
 ## Validation expectations
 
-A valid machine definition should support these checks:
+A valid machine definition should support these MCP tool calls without error:
 
-- `get_machine_context(host, platform, application)` resolves correctly
-- `build_computer(context)` exposes the expected template args
-- `resolve_runtime_layout(...)` produces sensible local and remote paths
-- `test_campaign_connection` succeeds for a real configured campaign
+- `list_computers` — the host appears in the listing
+- `describe_computer(host, platform, application)` — resolves cleanly and shows expected overrides
+- `create_campaign(function_name, host, platform, application)` — creates the campaign
+- `test_campaign_connection` — succeeds for a live configured campaign

@@ -9,6 +9,24 @@ Use this skill when the task is to turn an already validated Python function int
 
 This skill is specifically for the Dataset API, not `SanzuFunction`.
 
+## MCP vs direct Python use
+
+When using the `remotemanager-MCP` server, the Dataset lifecycle is managed
+through MCP tools rather than Python calls:
+
+| Python Dataset API | Equivalent MCP tool |
+|--------------------|---------------------|
+| `Dataset(...)` | `create_campaign` |
+| `ds.append_run(args)` | `append_campaign_run` |
+| `ds.run()` | `run_campaign` |
+| `ds.wait()` | `wait_campaign` |
+| `ds.fetch_results()` | `fetch_campaign_results` |
+| `ds.results` / `ds.errors` | `get_campaign_results` |
+
+Use the Python API in this skill when writing code that operates outside the
+MCP server boundary, for example standalone scripts, notebooks, or server
+extensions.
+
 ## Scope
 
 Assume the source function already exists and has already been scientifically validated.

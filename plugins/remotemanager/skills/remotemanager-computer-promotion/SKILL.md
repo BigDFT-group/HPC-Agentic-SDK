@@ -9,16 +9,31 @@ Use this skill when the task is to turn Python dictionaries describing a machine
 
 This skill should be used before Dataset promotion when the machine definition itself is still being assembled or checked.
 
+## MCP vs direct Python use
+
+When using the `remotemanager-MCP` server, `Computer` promotion is handled
+automatically: the `describe_computer` tool resolves the machine context and
+reports what the promoted `Computer` looks like. Use `describe_computer` to
+validate a machine database entry without writing any Python.
+
+Use this skill when writing Python code that builds a `Computer` directly
+from dictionaries, without going through the MCP server.
+
 ## Scope
 
 The input can come from:
 
 - plain Python dictionaries,
-- `remotecomputer.get_platform_specs(...)`,
-- `remotecomputer.get_machine_context(...)["platform"]`,
+- `remotemanager_mcp.computer_context.get_machine_context(...)["platform"]` (the MCP package's own helper),
+- the optional `remotecomputer` package: `remotecomputer.get_platform_specs(...)`,
 - a host dictionary plus a platform dictionary that must be merged.
 
 The output is a `Computer` object that has been validated before it is used in a `Dataset` or MCP server.
+
+> **Note:** The `remotecomputer` package is an optional dependency
+> (`pip install remotemanager-mcp[machine]`). When it is not installed, the
+> MCP server falls back to its own YAML-based machine resolution. Python code
+> that imports `remotecomputer` directly requires it to be installed.
 
 ## Core rule
 
@@ -74,18 +89,13 @@ defaults = {
 
 ## When using `remotecomputer`
 
-If the machine information comes from `remotecomputer`, prefer this pattern:
+If the machine information comes from `remotecomputer` (optional dependency), prefer this pattern:
 
 ```python
-from remotecomputer import get_machine_context
+from remotecomputer import get_platform_specs, get_application_specs
 
-ctx = get_machine_context(
-    "irene",
-    platform="frontend",
-    application="1.9.7-RC_oneapi25",
-)
-platform_specs = ctx["platform"]
-application_specs = ctx["application"]
+platform_specs = get_platform_specs(host="irene", platform="frontend")
+application_specs = get_application_specs(host="irene", application="intel_oneapi_mpi")
 ```
 
 Then promote the `Computer` from `platform_specs`, but use application data when needed to fill execution details such as the remote Python interpreter.
