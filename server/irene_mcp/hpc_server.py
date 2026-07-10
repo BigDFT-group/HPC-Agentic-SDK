@@ -155,7 +155,7 @@ def get_project(project_id: str) -> dict:
 def submit_job(spec: JobSpec, resource_id: str = RESOURCE_ID) -> dict:
     """Submit a job described by a JobSpec. (IRI: POST /compute/job/{resource_id})
 
-    The spec is rendered as a Bridge #MSUB script (kept under ~/.irene/jobs/ on
+    The spec is rendered as a Bridge #MSUB script (kept under ~/agent/jobs/ on
     the cluster for auditability) and submitted. Returns the job_id and the
     script path. Irene notes: attributes.queue_name picks the partition
     (rome for CPU work, xlarge for large-memory work, v100/v100l/v100xl for GPU work); attributes.account

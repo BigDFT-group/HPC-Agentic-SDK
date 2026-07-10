@@ -31,7 +31,7 @@ Legend: implemented, planned, deferred.
 
 | IRI endpoint | Tool | Status | Notes |
 |---|---|---|---|
-| POST /compute/job/{resource_id} | `submit_job` | implemented | JobSpec to Bridge `#MSUB` script under `~/.irene/jobs`, submitted by `ccc_msub` |
+| POST /compute/job/{resource_id} | `submit_job` | implemented | JobSpec to Bridge `#MSUB` script under `~/agent/jobs`, submitted by `ccc_msub` |
 | PUT /compute/job/{rid}/{job_id} | `update_job` | partial | Time-limit reduction through `ccc_malter -T`; other fields rejected |
 | GET /compute/status/{rid}/{job_id} | `get_job_status` | implemented | `ccc_mpp`; finished-job fallback via `ccc_macct` |
 | POST /compute/status/{rid} | `get_job_statuses` | implemented | Batch lookup; empty list returns live current-user jobs |

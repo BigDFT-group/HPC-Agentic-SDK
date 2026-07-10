@@ -26,7 +26,12 @@ from hpc_agent_core.models import Job, JobSpec, JobState, JobStatus
 from irene_mcp import config  # noqa: F401 -- registers via configure(); this
 # module must not rely on being imported after config by whoever imports it.
 
-_jobs_dir = ".irene/jobs"
+_jobs_dir = "agent/jobs"  # per PORTING.md §10: bias agent-created files into
+# one visible directory, not a hidden dotfile one — this was still the
+# pre-migration ".irene/jobs" until caught during a cross-repo demo-skill
+# compliance audit; core's SlurmBackend defaults to this same path, so
+# BridgeBackend (a local subclass, since Bridge doesn't fit either ready-made
+# backend) now matches it explicitly.
 
 # Bridge-native states -> the shared JobState enum. Bridge is CCRT-specific
 # (no other machine in this family uses it), so this mapping stays local
