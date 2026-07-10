@@ -4,15 +4,19 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "irene-mcp"
-version = "0.2.0"
+version = "0.2.1"
 description = "MCP servers for the TGCC Irene supercomputer: Bridge scheduler interaction and documentation search. A thin skin over hpc-agent-core."
 requires-python = ">=3.10"
 dependencies = [
     # Pinned to a compatible range, not left open — see hpc-agent-core's
     # PORTING.md §9. Re-check `pip index versions hpc-agent-core` before
-    # bumping the ceiling. Needs >=0.4.1 for doctor.check_embedding()'s fix
-    # for machines with no embedding endpoint configured at all.
-    "hpc-agent-core>=0.4.1,<0.5",
+    # bumping the ceiling. Needs >=0.4.2: 0.4.1 only fixed doctor's
+    # check_embedding() for a no-endpoint machine; 0.4.2 fixed the matching
+    # crash in rag.ingest.build_index() (hit live: RCCS_EMBED_API_KEY set
+    # in the environment made embed_api_key() resolve truthy even though
+    # Irene has no embed_base_url configured, so ingest tried to embed
+    # against a blank URL and crashed instead of writing a BM25-only index).
+    "hpc-agent-core>=0.4.2,<0.5",
 ]
 
 [project.scripts]

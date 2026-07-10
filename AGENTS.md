@@ -221,6 +221,16 @@ don't imply more than was actually checked:
   default — set it back if someone confirms that site is stable/reliable
   enough to cite); and the `ssh.passfile` config-schema change (see above)
   hasn't been exercised against a real password-auth Irene login.
+- **A real upstream bug was caught and fixed while regenerating the docs
+  index (2026-07-10)**: `python -m irene_mcp.ingest` crashed with
+  `httpx.UnsupportedProtocol` when `RCCS_EMBED_API_KEY` happened to be set
+  in the environment, because `hpc_agent_core.rag.ingest.build_index()`
+  only checked `embed_api_key()` before embedding — and that resolves
+  truthy from the shared env fallback regardless of whether *this*
+  machine has `embed_base_url` configured at all (Irene's is `""` — see
+  `config.py`). Fixed upstream in `hpc-agent-core` 0.4.2 (now the pin's
+  floor); Irene's docs index stays BM25-only by design either way, but no
+  longer crashes getting there.
 
 ## BigDFT Rules
 
