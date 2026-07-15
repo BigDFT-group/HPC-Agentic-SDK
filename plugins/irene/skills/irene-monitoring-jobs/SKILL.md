@@ -9,7 +9,7 @@ Use `get_job_status` for one job and `get_job_statuses` for several jobs or the
 current user's live jobs. The backend reads `ccc_mpp -u $USER` for pending/running
 jobs and falls back to `ccc_macct <jobid>` for finished jobs.
 
-For job output, IreneAgent's default scripts write `irene_%I.o` and `irene_%I.e`
+For job output, the irene plugin's default scripts write `irene_%I.o` and `irene_%I.e`
 in the submission directory unless the JobSpec sets explicit stdout/stderr paths.
 Use `fs_tail` or `fs_view` to inspect those files.
 

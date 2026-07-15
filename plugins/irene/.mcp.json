@@ -7,7 +7,7 @@
         "run",
         "--quiet",
         "--from",
-        "git+https://github.com/BigDFT-group/HPC-Agentic-SDK.git@main#subdirectory=server",
+        "git+https://github.com/BigDFT-group/BigDFT-Agents.git@main#subdirectory=server",
         "irene-hpc-mcp"
       ],
       "env": {}
@@ -19,7 +19,7 @@
         "run",
         "--quiet",
         "--from",
-        "git+https://github.com/BigDFT-group/HPC-Agentic-SDK.git@main#subdirectory=server",
+        "git+https://github.com/BigDFT-group/BigDFT-Agents.git@main#subdirectory=server",
         "irene-docs-mcp"
       ],
       "env": {}

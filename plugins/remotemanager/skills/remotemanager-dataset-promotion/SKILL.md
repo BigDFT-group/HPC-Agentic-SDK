@@ -272,3 +272,17 @@ Use this sequence when promoting a function:
 8. fetch and inspect results.
 
 Do not skip step 3. A broken `Computer` definition makes all later Dataset behavior harder to interpret.
+
+## BigDFT functions: validate locally before remote submission
+
+If the wrapped function runs a BigDFT calculation, validate the input locally with `SystemCalculator(dry_run=True)` before appending it as a Dataset run. This catches malformed input, missing pseudopotentials, and bad parameters in seconds instead of after waiting in a remote queue:
+
+```python
+from BigDFT.Calculators import SystemCalculator
+
+calc_dry = SystemCalculator(dry_run=True)
+calc_dry.run(input=inp, name="test", run_dir="local_test")
+# fix the input here if this raises, before wrapping it for Dataset
+```
+
+This is in addition to, not a replacement for, `Dataset.run(dry_run=True)` in step 7 above -- the two dry runs check different things (input validity vs. remote submission plumbing).

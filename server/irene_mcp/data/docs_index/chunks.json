@@ -2,7 +2,7 @@
   {
     "breadcrumb": "TGCC Irene",
     "url": "https://www-tgcc.ccc.cea.fr/",
-    "text": "An original, plain-language orientation to the TGCC Irene supercomputer, written\nfor users who drive it through IreneAgent. It records the site-specific facts that\nshape job sizing, storage choices, and scheduler interaction. Live values such as\nqueue occupancy, exact installed versions, and project consumption should be\nqueried from the machine.",
+    "text": "An original, plain-language orientation to the TGCC Irene supercomputer, written\nfor users who drive it through the irene plugin. It records the site-specific facts that\nshape job sizing, storage choices, and scheduler interaction. Live values such as\nqueue occupancy, exact installed versions, and project consumption should be\nqueried from the machine.",
     "id": 0
   },
   {
@@ -14,7 +14,7 @@
   {
     "breadcrumb": "TGCC Irene > Connecting And Interactive Use",
     "url": "https://www-tgcc.ccc.cea.fr/",
-    "text": "SSH access details are site- and project-specific; configure an SSH alias such\nas `irene` in `~/.ssh/config`, then set IreneAgent's `ssh.host` to that alias.\nLogin nodes are shared. They are for editing, compiling modest code, staging\nfiles, checking queues, and submitting jobs. Anything heavier than a personal\ncomputer workload belongs in an allocation.\n\nFor interactive work, TGCC documents two common Bridge modes:\n\n- `ccc_mprun -K -p <partition> -n <tasks> -T <seconds> -A <project>` creates an\n  allocation while keeping you on the login node. Inside that allocation, launch\n  steps with `ccc_mprun`.\n- `ccc_mprun -s -p <partition> -c <cores> -m <filesystems>` opens a shell on a\n  compute node. This is single-node only and useful for compilation,\n  post-processing, and short threaded work.\n\nRemote desktop visualization uses `ccc_visu virtual -p <partition>` or\n`ccc_visu console -p <partition>`.",
+    "text": "SSH access details are site- and project-specific; configure an SSH alias such\nas `irene` in `~/.ssh/config`, then set the irene plugin's `ssh.host` to that alias.\nLogin nodes are shared. They are for editing, compiling modest code, staging\nfiles, checking queues, and submitting jobs. Anything heavier than a personal\ncomputer workload belongs in an allocation.\n\nFor interactive work, TGCC documents two common Bridge modes:\n\n- `ccc_mprun -K -p <partition> -n <tasks> -T <seconds> -A <project>` creates an\n  allocation while keeping you on the login node. Inside that allocation, launch\n  steps with `ccc_mprun`.\n- `ccc_mprun -s -p <partition> -c <cores> -m <filesystems>` opens a shell on a\n  compute node. This is single-node only and useful for compilation,\n  post-processing, and short threaded work.\n\nRemote desktop visualization uses `ccc_visu virtual -p <partition>` or\n`ccc_visu console -p <partition>`.",
     "id": 2
   },
   {
@@ -56,7 +56,7 @@
   {
     "breadcrumb": "TGCC Irene > Staying Current",
     "url": "https://www-tgcc.ccc.cea.fr/",
-    "text": "The TGCC public documentation used for this guide is dated 2026-04-27. Hardware\nfacts are relatively stable, but partition availability, quotas, modules, QoS\nlimits, and project accounting are live operational data. Use IreneAgent tools to\nquery current `ccc_mpinfo`, `ccc_mqinfo`, `ccc_compuse`, `ccc_myproject`, and\n`module avail` output when precision matters.",
+    "text": "The TGCC public documentation used for this guide is dated 2026-04-27. Hardware\nfacts are relatively stable, but partition availability, quotas, modules, QoS\nlimits, and project accounting are live operational data. Use the irene plugin's tools to\nquery current `ccc_mpinfo`, `ccc_mqinfo`, `ccc_compuse`, `ccc_myproject`, and\n`module avail` output when precision matters.",
     "id": 9
   }
 ]

@@ -1,9 +1,9 @@
 ---
 name: irene-configuring
-description: Use when the user wants to set up, configure, or troubleshoot IreneAgent, including SSH access, default TGCC project/account, filesystem defaults, optional docs embeddings, or ~/.irene/config.json.
+description: Use when the user wants to set up, configure, or troubleshoot the irene plugin, including SSH access, default TGCC project/account, filesystem defaults, optional docs embeddings, or ~/.irene/config.json.
 ---
 
-# Configuring IreneAgent
+# Configuring Irene
 
 Settings live in `~/.irene/config.json`. Environment variables override the file:
 `IRENE_HOST`, `IRENE_PASSFILE`, `IRENE_ACCOUNT`, `IRENE_FILESYSTEMS`,
@@ -55,7 +55,7 @@ jobs reading or writing STORE, or `scratch,work,store` when all three are needed
 Validate with:
 
 ```bash
-uv tool run --quiet --from git+https://github.com/BigDFT-group/HPC-Agentic-SDK.git@main#subdirectory=server irene-doctor
+uv tool run --quiet --from git+https://github.com/BigDFT-group/BigDFT-Agents.git@main#subdirectory=server irene-doctor
 ```
 
 Docs search works offline with BM25. Embeddings are optional and require a custom

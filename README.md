@@ -1,8 +1,9 @@
-# IreneAgent
+# BigDFT-Agents
 
-Claude Code and Codex plugin for the TGCC **Irene** supercomputer at CEA: submit
-and monitor Bridge/Slurm jobs, manage files on the cluster, and search a built-in
-Irene guide from the agent.
+Claude Code and Codex plugin marketplace for the [BigDFT](https://bigdft.org)
+electronic structure code and the TGCC **Irene** supercomputer at CEA: install
+and use BigDFT, run remote calculations with RemoteManager, and submit/monitor
+Bridge/Slurm jobs on Irene, all from the agent.
 
 Irene is CPU-first. The normal target is the `rome` partition: 2,286 AMD Rome
 nodes with 128 cores per node. Specialized `xlarge` and V100-family partitions
@@ -11,13 +12,21 @@ cover large-memory and GPU workloads.
 
 ## Included Plugins
 
-This marketplace currently distributes two user-facing plugins:
+This marketplace currently distributes four plugins:
 
 - `irene`: live TGCC Irene status, filesystem, job, and documentation tools.
 - `remotemanager`: RemoteManager Dataset campaign tools. The Python MCP server
   remains in the external `remotemanager-MCP` repository and is installed at
   launch time with `uv tool run`. User-specific paths are read from
   `~/.config/remotemanager-mcp/config.yaml`, not from marketplace metadata.
+- `bigdft`: skills for using the BigDFT electronic structure code as an end
+  user -- install from source, generate input files, build PyBigDFT systems,
+  configure pseudopotentials and linear scaling, and parse logfile output.
+  Skills only, no MCP server. Remote execution of BigDFT calculations uses
+  the `remotemanager` plugin above.
+- `bigdft-dev`: developer guides for BigDFT's Fortran internals -- Futile,
+  ATlab, liborbs, PSolver, KB projectors, and the input-variable pipeline.
+  Skills only, no MCP server.
 
 Project-wide marketplace maintenance rules live in `AGENTS.md`.
 
@@ -61,15 +70,19 @@ manual MCP registration with the absolute path to `uv`.
 ### Claude Code
 
 ```text
-/plugin marketplace add BigDFT-group/HPC-Agentic-SDK
-/plugin install irene@irene-marketplace
+/plugin marketplace add BigDFT-group/BigDFT-Agents
+/plugin install irene@bigdft-agents-marketplace
 /reload-plugins
 ```
+
+Swap `irene` for `remotemanager`, `bigdft`, or `bigdft-dev` to install the other
+plugins. `bigdft` and `bigdft-dev` are skills only -- no `uv`, MCP server, or
+`PATH` setup needed.
 
 ### Codex
 
 ```text
-codex plugin marketplace add BigDFT-group/HPC-Agentic-SDK
+codex plugin marketplace add BigDFT-group/BigDFT-Agents
 ```
 
 Then open `/plugins`, install `irene`, start a new thread, and run `/irene-demo`.
@@ -84,12 +97,12 @@ servers:
   "mcpServers": {
     "irene-hpc": {
       "command": "uv",
-      "args": ["tool", "run", "--quiet", "--from", "git+https://github.com/BigDFT-group/HPC-Agentic-SDK.git@main#subdirectory=server", "irene-hpc-mcp"],
+      "args": ["tool", "run", "--quiet", "--from", "git+https://github.com/BigDFT-group/BigDFT-Agents.git@main#subdirectory=server", "irene-hpc-mcp"],
       "env": {}
     },
     "irene-docs": {
       "command": "uv",
-      "args": ["tool", "run", "--quiet", "--from", "git+https://github.com/BigDFT-group/HPC-Agentic-SDK.git@main#subdirectory=server", "irene-docs-mcp"],
+      "args": ["tool", "run", "--quiet", "--from", "git+https://github.com/BigDFT-group/BigDFT-Agents.git@main#subdirectory=server", "irene-docs-mcp"],
       "env": {}
     }
   }
@@ -104,12 +117,12 @@ the absolute executable path, for example:
   "mcpServers": {
     "irene-hpc": {
       "command": "/home/genovese/.local/bin/uv",
-      "args": ["tool", "run", "--quiet", "--from", "git+https://github.com/BigDFT-group/HPC-Agentic-SDK.git@main#subdirectory=server", "irene-hpc-mcp"],
+      "args": ["tool", "run", "--quiet", "--from", "git+https://github.com/BigDFT-group/BigDFT-Agents.git@main#subdirectory=server", "irene-hpc-mcp"],
       "env": {}
     },
     "irene-docs": {
       "command": "/home/genovese/.local/bin/uv",
-      "args": ["tool", "run", "--quiet", "--from", "git+https://github.com/BigDFT-group/HPC-Agentic-SDK.git@main#subdirectory=server", "irene-docs-mcp"],
+      "args": ["tool", "run", "--quiet", "--from", "git+https://github.com/BigDFT-group/BigDFT-Agents.git@main#subdirectory=server", "irene-docs-mcp"],
       "env": {}
     }
   }
@@ -119,12 +132,12 @@ the absolute executable path, for example:
 Codex can also register the same servers without editing TOML manually:
 
 ```bash
-codex mcp add irene-hpc -- /home/genovese/.local/bin/uv tool run --quiet --from git+https://github.com/BigDFT-group/HPC-Agentic-SDK.git@main#subdirectory=server irene-hpc-mcp
-codex mcp add irene-docs -- /home/genovese/.local/bin/uv tool run --quiet --from git+https://github.com/BigDFT-group/HPC-Agentic-SDK.git@main#subdirectory=server irene-docs-mcp
+codex mcp add irene-hpc -- /home/genovese/.local/bin/uv tool run --quiet --from git+https://github.com/BigDFT-group/BigDFT-Agents.git@main#subdirectory=server irene-hpc-mcp
+codex mcp add irene-docs -- /home/genovese/.local/bin/uv tool run --quiet --from git+https://github.com/BigDFT-group/BigDFT-Agents.git@main#subdirectory=server irene-docs-mcp
 ```
 
 ## Verify
 
 ```bash
-uv tool run --from git+https://github.com/BigDFT-group/HPC-Agentic-SDK.git@main#subdirectory=server irene-doctor
+uv tool run --from git+https://github.com/BigDFT-group/BigDFT-Agents.git@main#subdirectory=server irene-doctor
 ```

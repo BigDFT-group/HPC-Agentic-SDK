@@ -1,7 +1,7 @@
 # TGCC Irene
 
 An original, plain-language orientation to the TGCC Irene supercomputer, written
-for users who drive it through IreneAgent. It records the site-specific facts that
+for users who drive it through the irene plugin. It records the site-specific facts that
 shape job sizing, storage choices, and scheduler interaction. Live values such as
 queue occupancy, exact installed versions, and project consumption should be
 queried from the machine.
@@ -34,7 +34,7 @@ within one node.
 ## Connecting And Interactive Use
 
 SSH access details are site- and project-specific; configure an SSH alias such
-as `irene` in `~/.ssh/config`, then set IreneAgent's `ssh.host` to that alias.
+as `irene` in `~/.ssh/config`, then set the irene plugin's `ssh.host` to that alias.
 Login nodes are shared. They are for editing, compiling modest code, staging
 files, checking queues, and submitting jobs. Anything heavier than a personal
 computer workload belongs in an allocation.
@@ -197,6 +197,6 @@ Cluster data spaces are mounted by default unless pcocc defaults are disabled.
 
 The TGCC public documentation used for this guide is dated 2026-04-27. Hardware
 facts are relatively stable, but partition availability, quotas, modules, QoS
-limits, and project accounting are live operational data. Use IreneAgent tools to
+limits, and project accounting are live operational data. Use the irene plugin's tools to
 query current `ccc_mpinfo`, `ccc_mqinfo`, `ccc_compuse`, `ccc_myproject`, and
 `module avail` output when precision matters.

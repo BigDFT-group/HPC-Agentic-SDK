@@ -1,7 +1,7 @@
 {
-  "name": "irene-marketplace",
+  "name": "bigdft-agents-marketplace",
   "interface": {
-    "displayName": "Irene"
+    "displayName": "BigDFT-Agents"
   },
   "plugins": [
     {
@@ -25,6 +25,28 @@
       "policy": {
         "installation": "AVAILABLE",
         "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "bigdft",
+      "source": {
+        "source": "local",
+        "path": "./plugins/bigdft"
+      },
+      "policy": {
+        "installation": "AVAILABLE"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "bigdft-dev",
+      "source": {
+        "source": "local",
+        "path": "./plugins/bigdft-dev"
+      },
+      "policy": {
+        "installation": "AVAILABLE"
       },
       "category": "Productivity"
     }

@@ -1,0 +1,24 @@
+{
+  "name": "bigdft",
+  "version": "0.1.0",
+  "description": "Use the BigDFT electronic structure code: install from source, generate input files, build atomic systems with PyBigDFT, configure pseudopotentials and linear scaling, and parse logfile output.",
+  "author": {
+    "name": "William Dawson"
+  },
+  "repository": "https://github.com/BigDFT-group/BigDFT-Agents",
+  "keywords": ["bigdft", "dft", "electronic-structure", "pybigdft", "computational-chemistry", "wavelets"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "BigDFT",
+    "shortDescription": "Install, configure, and run BigDFT calculations with PyBigDFT.",
+    "longDescription": "Skills for using the BigDFT electronic structure code as an end user: installing from source, generating input files, building atomic systems, configuring pseudopotentials and linear scaling, and parsing logfile output.",
+    "developerName": "William Dawson",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Write"],
+    "defaultPrompt": [
+      "Install BigDFT from source.",
+      "Generate a BigDFT input file.",
+      "Parse a BigDFT logfile."
+    ]
+  }
+}

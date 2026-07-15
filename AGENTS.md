@@ -1,4 +1,4 @@
-# HPC-Agentic-SDK — Agent Instructions
+# BigDFT-Agents — Agent Instructions
 
 This repository is the public marketplace/distribution layer for HPC agentic
 plugins. It currently includes:
@@ -7,6 +7,15 @@ plugins. It currently includes:
 - `server/irene_mcp`: Python implementation for the Irene MCP servers.
 - `plugins/remotemanager`: marketplace plugin for the external
   `remotemanager-MCP` Python package.
+- `plugins/bigdft`: skills-only plugin for using the BigDFT electronic
+  structure code as an end user (install, input generation, PyBigDFT
+  systems, pseudopotentials, linear scaling, logfile parsing).
+- `plugins/bigdft-dev`: skills-only plugin of developer guides for BigDFT's
+  Fortran internals (Futile, ATlab, liborbs, PSolver, KB projectors, the
+  input-variable pipeline). Kept separate from `plugins/bigdft` so a user
+  running calculations doesn't have to install six library-internals
+  skills, and a BigDFT source contributor doesn't get input-file skills
+  they don't need.
 
 ## Design Rules
 
@@ -41,6 +50,16 @@ Register plugins in both marketplace manifests:
 
 Plugin manifests should include display metadata, repository, keywords, skills,
 and `mcpServers` only if `.mcp.json` exists.
+
+Skill directories and their `name:` frontmatter must be prefixed with the
+plugin name (`irene-configuring`, `remotemanager-dataset-promotion`,
+`bigdft-install`, `bigdft-dev-futile`), even though the skill is invoked as
+`/<plugin>:<skill-name>` and the prefix repeats the plugin name. This keeps
+skill names unambiguous when multiple plugins are installed together. If a
+plugin's skills split into more than one logical group (for example BigDFT's
+end-user vs. Fortran-developer skills), prefer a second plugin over deeper
+prefixing or subdirectories — skill discovery expects a flat `skills/*/SKILL.md`
+layout, and a second plugin lets users install only the group they need.
 
 ## MCP Launcher Pattern
 
@@ -116,6 +135,25 @@ python3 -m venv .venv
 ```
 
 `tests/smoke.py --job` submits a real job and consumes allocation time.
+
+## BigDFT Rules
+
+- `plugins/bigdft` and `plugins/bigdft-dev` skills follow the authoring
+  conventions from the upstream `bigdft-skills` source repo: YAML
+  frontmatter, ask the user one question at a time, auto-detect what's
+  possible before asking, include code building blocks as fenced
+  Python/Fortran, and use `# FILL` comments for values the agent should
+  customize.
+- Do not add a RemoteManager connection/dataset skill to `plugins/bigdft` or
+  `plugins/bigdft-dev`. That responsibility belongs to `plugins/remotemanager`
+  (MCP-backed campaign tools). The upstream `bigdft-skills` repo's `remote`
+  and `dataset` skills were intentionally dropped when integrating into this
+  marketplace because they duplicated raw-Python RemoteManager guidance that
+  `plugins/remotemanager` already covers through MCP tools and machine-database
+  conventions. BigDFT-specific remote-execution advice (for example,
+  validating input locally with `SystemCalculator(dry_run=True)` before
+  submitting) lives in `plugins/remotemanager`'s
+  `remotemanager-dataset-promotion` skill instead.
 
 ## Refresh Procedure
 

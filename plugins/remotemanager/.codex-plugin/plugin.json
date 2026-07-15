@@ -1,11 +1,11 @@
 {
   "name": "remotemanager",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Create and manage RemoteManager Dataset campaigns on local and HPC computers, including TGCC Irene configurations.",
   "author": {
     "name": "HPC-Agents maintainers"
   },
-  "repository": "https://github.com/BigDFT-group/HPC-Agentic-SDK",
+  "repository": "https://github.com/BigDFT-group/BigDFT-Agents",
   "keywords": [
     "hpc",
     "remotemanager",

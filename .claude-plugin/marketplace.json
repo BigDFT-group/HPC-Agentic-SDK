@@ -1,5 +1,5 @@
 {
-  "name": "irene-marketplace",
+  "name": "bigdft-agents-marketplace",
   "owner": {
     "name": "HPC-Agents maintainers"
   },
@@ -13,6 +13,18 @@
       "name": "remotemanager",
       "source": "./plugins/remotemanager",
       "description": "RemoteManager Dataset campaign management for local and HPC execution targets."
+    },
+    {
+      "name": "bigdft",
+      "source": "./plugins/bigdft",
+      "description": "Install BigDFT, generate input files, build PyBigDFT systems, configure pseudopotentials and linear scaling, and parse logfile output.",
+      "keywords": ["bigdft", "dft", "electronic-structure", "pybigdft", "computational-chemistry", "wavelets"]
+    },
+    {
+      "name": "bigdft-dev",
+      "source": "./plugins/bigdft-dev",
+      "description": "Developer guides for BigDFT's Fortran internals: Futile, ATlab, liborbs, PSolver, KB projectors, and the input-variable pipeline.",
+      "keywords": ["bigdft", "fortran", "futile", "atlab", "liborbs", "psolver"]
     }
   ]
 }

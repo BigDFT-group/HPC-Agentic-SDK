@@ -1,0 +1,20 @@
+{
+  "name": "bigdft-dev",
+  "version": "0.1.0",
+  "description": "Developer guides for BigDFT's Fortran libraries and internals: Futile, ATlab, liborbs, PSolver, KB projectors, and the input-variable pipeline. Use when writing or modifying BigDFT source code.",
+  "author": {
+    "name": "William Dawson"
+  },
+  "repository": "https://github.com/BigDFT-group/BigDFT-Agents",
+  "keywords": [
+    "bigdft",
+    "fortran",
+    "futile",
+    "atlab",
+    "liborbs",
+    "psolver",
+    "electronic-structure",
+    "hpc"
+  ],
+  "skills": "./skills/"
+}

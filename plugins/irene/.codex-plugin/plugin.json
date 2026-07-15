@@ -5,7 +5,7 @@
   "author": {
     "name": "HPC-Agents maintainers"
   },
-  "repository": "https://github.com/BigDFT-group/HPC-Agentic-SDK",
+  "repository": "https://github.com/BigDFT-group/BigDFT-Agents",
   "keywords": ["hpc", "slurm", "bridge", "tgcc", "cea", "irene", "supercomputer"],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",

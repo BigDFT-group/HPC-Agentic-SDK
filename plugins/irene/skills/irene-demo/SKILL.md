@@ -1,6 +1,6 @@
 ---
 name: irene-demo
-description: Interactive demo of IreneAgent: facility info, live status, docs search, filesystem access, and a small CPU job on TGCC Irene.
+description: Interactive demo of the irene plugin: facility info, live status, docs search, filesystem access, and a small CPU job on TGCC Irene.
 ---
 
 # Irene Demo
