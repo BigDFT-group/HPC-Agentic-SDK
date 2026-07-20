@@ -1,123 +1,99 @@
-"""Configuration for the Irene MCP servers.
+"""TGCC Irene settings, registered with hpc-agent-core.
 
-Settings come from, in order of precedence:
-  1. Environment variables (IRENE_*)
-  2. The user config file ~/.irene/config.json (path override: IRENE_CONFIG)
-  3. Defaults
+This module calls `hpc_agent_core.config.configure(...)` once, at import
+time, before any other hpc_agent_core module touches config. Every other
+module in this package (`compute`, `hpc_server`, `docs_server`, `doctor`)
+imports this module first so the registration has already happened.
 
-Example config:
+Settings resolve in order: environment variable > the user's config file >
+the default registered here. The user config file lives at the common
+`~/.hpc-agent/irene.json` (see hpc_agent_core.config for the exact
+resolution, including the legacy `~/.irene/config.json` fallback).
+
+Irene requires password-based SSH auth for some users (a `passfile`). This
+is a per-user value, so it goes through hpc_agent_core's generic
+`"computer"` config-file object, not through configure()'s machine-level
+computer_defaults:
 
     {
-      "ssh": {"host": "irene", "passfile": "/tmp/irene"},
-      "account": "gen12345",
-      "filesystems": "scratch,work",
+      "ssh": {"host": "irene"},
+      "computer": {"passfile": "/tmp/irene"},
+      "defaults": {"account": "gen12345", "filesystems": "scratch,work"},
       "embedding": {"api_key": "..."}
     }
 
-`ssh.host` is an alias from ~/.ssh/config or a plain user@hostname. If Irene
-requires password authentication, set `ssh.passfile` to a local file containing
-the password; `IRENE_PASSFILE` overrides it. `account` is the default TGCC
-project ID charged for jobs that do not set one explicitly. `filesystems` is the
-default Bridge -m value; Irene requires job submissions to declare the
-filesystems they need.
-
-Documentation search is BM25 keyword search by default. Embedding settings are
-optional and only useful after rebuilding a vector index for Irene.
+Note for anyone who configured this plugin before this migration: the old
+schema nested passfile under `ssh.passfile` — that location is no longer
+read (hpc_agent_core.middleware.get_frontend() only reads the `"computer"`
+object), so move it to `computer.passfile` in your config file. `account`
+and `filesystems` still work at the old top-level location too (see
+default_account/default_filesystems below), so those don't need to move.
 """
 import json
 import os
-from contextlib import ExitStack
 from functools import lru_cache
-from importlib import resources
-from pathlib import Path
 
-CONFIG_PATH = Path(os.environ.get("IRENE_CONFIG", "~/.irene/config.json")).expanduser()
+from hpc_agent_core import config as _core
 
-
-def _file_config() -> dict:
-    """The parsed config file, or {} if absent. Raises on malformed JSON."""
-    try:
-        with open(CONFIG_PATH) as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return {}
-    except json.JSONDecodeError as e:
-        raise RuntimeError(f"Malformed config file {CONFIG_PATH}: {e}") from e
-
-
-def ssh_host() -> str:
-    """SSH destination for the Irene front-end (alias or user@hostname)."""
-    return (os.environ.get("IRENE_HOST")
-            or _file_config().get("ssh", {}).get("host")
-            or "irene")
-
-
-def ssh_passfile() -> str | None:
-    """Optional remotemanager password file for Irene SSH authentication."""
-    return (os.environ.get("IRENE_PASSFILE")
-            or _file_config().get("ssh", {}).get("passfile")
-            or None)
-
-
-def default_account() -> str | None:
-    """Default TGCC project ID for jobs that do not set one.
-
-    Irene job execution requires -A <project>; this provides a fallback when a
-    JobSpec leaves attributes.account unset. Override via IRENE_ACCOUNT.
-    """
-    return (os.environ.get("IRENE_ACCOUNT")
-            or _file_config().get("account")
-            or None)
-
-
-def default_filesystems() -> str:
-    """Filesystem list for Bridge -m. Irene requires this on job submissions."""
-    return (os.environ.get("IRENE_FILESYSTEMS")
-            or _file_config().get("filesystems")
-            or "scratch,work")
-
-
-# --- Optional embedding endpoint -------------------------------------------
-# The committed Irene index is keyword-only. These settings are present so a
-# site can rebuild a private vector index without changing the docs server.
-
-EMBED_BASE_URL = os.environ.get(
-    "IRENE_EMBED_BASE_URL",
-    _file_config().get("embedding", {}).get("base_url", ""),
-)
-EMBED_MODEL = os.environ.get(
-    "IRENE_EMBED_MODEL",
-    _file_config().get("embedding", {}).get("model", ""),
+_core.configure(
+    env_prefix="IRENE",                  # -> IRENE_HOST, IRENE_CONFIG, IRENE_EMBED_API_KEY
+    default_host="irene",                 # ssh.host fallback: an alias in ~/.ssh/config, or user@hostname
+    package="irene_mcp",                  # matches this package's actual name
+    embed_base_url="",                    # no shared embedding endpoint for this site; BM25 only until one is configured
+    embed_model="",
+    docs_cite_url="",                     # blank: TGCC's site stability is unconfirmed — see AGENTS.md
+    config_dir_name=".irene",             # legacy path ~/.irene/config.json, kept working for existing users
+    # No computer_defaults: passfile (if needed) is per-user, so it belongs
+    # in the end user's own config file under "computer", not here.
 )
 
-
-def embed_api_key() -> str:
-    """API key for an optional embedding endpoint. Empty string means no auth."""
-    file = _file_config().get("embedding", {})
-    return os.environ.get("IRENE_EMBED_API_KEY") or file.get("api_key") or ""
-
-
-# --- Static data ------------------------------------------------------------
-
-_RESOURCE_STACK = ExitStack()
-
-
-def _bundled_data_dir() -> Path:
-    """Filesystem path to package data, including zip-safe extraction fallback."""
-    data = resources.files("irene_mcp") / "data"
-    return _RESOURCE_STACK.enter_context(resources.as_file(data))
-
-
-_DATA_DIR = _bundled_data_dir()
-
-DOCS_INDEX_DIR = Path(os.environ.get("IRENE_DOCS_INDEX", _DATA_DIR / "docs_index"))
-DOCS_SOURCE = Path(os.environ.get("IRENE_DOCS_SOURCE", _DATA_DIR / "irene_guide.md"))
-DOCS_SITE_BASE = "https://www-tgcc.ccc.cea.fr/"
+# Re-export the registered values/functions the rest of the package imports
+# from here (kept for readability at call sites):
+ssh_host = _core.ssh_host
+embed_api_key = _core.embed_api_key
+CONFIG_PATH = _core.config_path()
+DATA_DIR = _core.data_dir()
 
 
 @lru_cache(maxsize=1)
 def load_cluster_config() -> dict:
-    """Load the static Irene description (partitions, modules, storage)."""
-    path = Path(os.environ.get("IRENE_CLUSTER_CONFIG", _DATA_DIR / "irene_config.json"))
-    with open(path) as f:
+    """Irene's static facts (partitions, subsystems, storage, modules) —
+    bundled package data, not the user's config file."""
+    with open(DATA_DIR / "irene_config.json") as f:
         return json.load(f)
+
+
+def _user_config() -> dict:
+    """The user's config file parsed, or {} if absent/malformed. Read at
+    call time (never at import) so a missing config never blocks startup."""
+    try:
+        with open(CONFIG_PATH) as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def default_account() -> str | None:
+    """The TGCC project to charge when a job doesn't name one.
+
+    Irene requires -A <project> on every job submission. Resolves
+    IRENE_ACCOUNT, then the config file's defaults.account, then the
+    pre-migration top-level `account` key (so existing configs keep
+    working), then None (submit_job then errors with a clear message
+    rather than submitting an unbillable job).
+    """
+    user_config = _user_config()
+    return (os.environ.get("IRENE_ACCOUNT")
+            or (user_config.get("defaults") or {}).get("account")
+            or user_config.get("account"))
+
+
+def default_filesystems() -> str:
+    """The filesystem list for Bridge's #MSUB -m, when a job doesn't set
+    attributes.custom_attributes['filesystems']. Irene requires this on
+    every job submission."""
+    user_config = _user_config()
+    return (os.environ.get("IRENE_FILESYSTEMS")
+            or (user_config.get("defaults") or {}).get("filesystems")
+            or user_config.get("filesystems")
+            or "scratch,work")

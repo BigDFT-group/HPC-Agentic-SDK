@@ -1,25 +1,20 @@
 """MCP server for TGCC Irene, modeled on the IRI Facility API.
 
 Tool groups mirror the IRI resource groups (facility, status, compute,
-filesystem); each operation is executed on the Irene front-end node over SSH via
-remotemanager, since Irene does not expose a REST facility API itself.
-Coverage of the full API is tracked in IRI_CHECKLIST.md at the repo root.
+filesystem); each operation is executed on the Irene front-end node over SSH
+via hpc_agent_core.middleware, since Irene does not expose a REST facility
+API itself. Coverage of the full API is tracked in IRI_CHECKLIST.md at the
+repo root.
 """
 import shlex
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
+from hpc_agent_core.middleware import download_file, quote_path, run_command, upload_file
+from hpc_agent_core.models import CompressionType, Job, JobSpec
+from hpc_agent_core.serving import serve
 from irene_mcp import compute, config
-from irene_mcp.middleware import (
-    download_file,
-    quote_path,
-    run_command,
-    upload_file,
-    write_remote_file,
-)
-from irene_mcp.models import CompressionType, Job, JobSpec
-from irene_mcp.serving import serve
 
 mcp = FastMCP("irene-hpc")
 
@@ -135,11 +130,11 @@ def get_projects() -> list[dict]:
 
     Each project has an id (account name) used in JobAttributes.account.
     """
-    output = run_command("ccc_compuse", raise_errors=False)
+    output = compute._run_optional("ccc_compuse")
     projects = _parse_projects(output)
     if projects:
         return projects
-    return [{"raw": run_command("ccc_myproject", raise_errors=False)}]
+    return [{"raw": compute._run_optional("ccc_myproject")}]
 
 
 @mcp.tool()
@@ -160,14 +155,15 @@ def get_project(project_id: str) -> dict:
 def submit_job(spec: JobSpec, resource_id: str = RESOURCE_ID) -> dict:
     """Submit a job described by a JobSpec. (IRI: POST /compute/job/{resource_id})
 
-    The spec is rendered as a Bridge #MSUB script (kept under ~/.irene/jobs/ on
+    The spec is rendered as a Bridge #MSUB script (kept under ~/agent/jobs/ on
     the cluster for auditability) and submitted. Returns the job_id and the
     script path. Irene notes: attributes.queue_name picks the partition
     (rome for CPU work, xlarge for large-memory work, v100/v100l/v100xl for GPU work); attributes.account
     (a TGCC project ID) must be explicitly supplied and is checked against
     get_projects/ccc_compuse before submission; describe CPU work with resources.processes_per_node (MPI ranks)
     and cpu_cores_per_process (threads); executable may be a shell line such as
-    'module load mpi/openmpi && ccc_mprun ./a.out'.
+    'module load mpi/openmpi && ccc_mprun ./a.out'. Show the user the spec (or
+    the rendered script) before submitting, unless they asked to just run it.
     """
     _check_resource(resource_id)
     return compute.submit(spec)
@@ -197,7 +193,8 @@ def get_job_statuses(job_ids: list[str], resource_id: str = RESOURCE_ID) -> list
     _check_resource(resource_id)
     if job_ids:
         return compute.get_statuses(job_ids)
-    # No IDs given: current user's jobs from the last two days.
+    # No IDs given: current user's live (queued/running) jobs — Bridge has no
+    # date-range accounting query, so this is the live queue, not history.
     return compute.get_recent_statuses()
 
 
@@ -224,8 +221,7 @@ def update_job(
         raise ValueError("Irene Bridge update currently supports time_limit only; unsupported fields: " + ", ".join(requested))
     if not time_limit:
         raise ValueError("No fields to update — supply time_limit")
-    from irene_mcp.compute.base import duration_to_seconds
-    run_command(f"ccc_malter -T {duration_to_seconds(time_limit)} {shlex.quote(job_id)}")
+    run_command(f"ccc_malter -T {compute.duration_to_seconds(time_limit)} {shlex.quote(job_id)}")
     jobs = compute.get_statuses([job_id])
     if not jobs:
         raise ValueError(f"Job {job_id} not found after update")
@@ -440,7 +436,8 @@ def run_command_on_cluster(command: str) -> str:
     'listcpu -p <project>' to check core-time, or 'lfs quota -p $UID $HOME' for
     disk usage. Runs under a login shell from the home directory; returns
     stdout+stderr. Do not run heavy computation on the front-end — submit a job
-    instead.
+    instead. Before calling this, show the user the exact command and a
+    one-line explanation of what it does, unless they asked to just run it.
     """
     return run_command(command)
 

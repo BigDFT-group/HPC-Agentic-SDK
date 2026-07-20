@@ -3,12 +3,16 @@
 Claude Code and Codex plugin marketplace for the [BigDFT](https://bigdft.org)
 electronic structure code and the TGCC **Irene** supercomputer at CEA: install
 and use BigDFT, run remote calculations with RemoteManager, and submit/monitor
-Bridge/Slurm jobs on Irene, all from the agent.
+Bridge jobs on Irene, all from the agent.
 
 Irene is CPU-first. The normal target is the `rome` partition: 2,286 AMD Rome
 nodes with 128 cores per node. Specialized `xlarge` and V100-family partitions
-cover large-memory and GPU workloads.
-
+cover large-memory and GPU workloads. Built as a thin machine-specific "skin"
+on top of [`hpc-agent-core`](https://pypi.org/project/hpc-agent-core/) — see
+[hpc-agent-core's `PORTING.md`](https://github.com/william-dawson/hpc-agent-core/blob/main/PORTING.md)
+for the general porting guide this repo follows, and
+[`AGENTS.md`](AGENTS.md) for the design rules and cluster facts an agent
+working on this repo should know.
 
 ## Included Plugins
 
@@ -34,44 +38,59 @@ This marketplace currently distributes five plugins:
   Execution is always in-process; remote/HPC submission of the generated
   code uses the `remotemanager` plugin above, same as `bigdft`.
 
-Project-wide marketplace maintenance rules live in `AGENTS.md`.
+Project-wide marketplace maintenance rules live in `AGENTS.md`. Everything
+below is about the `irene` plugin specifically.
 
 ## Configure
 
-Settings live in `~/.irene/config.json`:
+Settings live in `~/.hpc-agent/irene.json` (the common directory shared by
+every hpc-agent-core plugin):
 
 ```json
 {
-  "ssh": {"host": "irene", "passfile": "/tmp/irene"},
-  "account": "gen12345",
-  "filesystems": "scratch,work"
+  "ssh": {"host": "irene"},
+  "computer": {"passfile": "/tmp/irene"},
+  "defaults": {"account": "gen12345", "filesystems": "scratch,work"}
 }
 ```
 
-- `ssh.host` is a `~/.ssh/config` alias or TGCC-provided `user@host`. `IRENE_HOST` overrides it.
-- `ssh.passfile` is an optional remotemanager password file, for example `/tmp/irene`. `IRENE_PASSFILE` overrides it.
-- `account` is only a remembered project value for configuration workflows. Job submissions must still set `attributes.account` explicitly; the backend validates it against `ccc_compuse`.
-- `filesystems` is the default Bridge `-m` value. Irene job submissions must declare filesystems. `IRENE_FILESYSTEMS` overrides it.
+- `ssh.host` is a `~/.ssh/config` alias, TGCC-provided `user@host`, or
+  `"localhost"` if the agent is running directly on an Irene front-end node
+  (no SSH needed at all). `IRENE_HOST` overrides it.
+- `computer.passfile` is an optional password file for SSH auth (only
+  needed if Irene requires it for your account). If you configured this
+  plugin before it moved onto hpc-agent-core, move this value here from
+  its old location, `ssh.passfile` — that location is no longer read.
+- `defaults.account` is the TGCC project charged when a job doesn't set
+  `attributes.account` explicitly (the backend still validates it against
+  `ccc_compuse` at submit time). The old top-level `account` key still
+  works too. `IRENE_ACCOUNT` overrides both.
+- `defaults.filesystems` is the default Bridge `-m` value; every Irene job
+  submission must declare filesystems. The old top-level `filesystems` key
+  still works too. `IRENE_FILESYSTEMS` overrides both.
+- A legacy `~/.irene/config.json` is still read if it's the only config
+  present.
 
-Docs search works offline with BM25 over the packaged guide.
+Docs search works offline with BM25 over the packaged guide (no shared
+embedding endpoint is configured for Irene).
 
 ## Install
 
-Adding the plugin marketplace only registers the plugin metadata; it does not
-start the Irene MCP servers and does not need `uv`.
+### Prerequisite: uv
 
-The installed plugin starts MCP servers with `uv tool run`, so `uv` must be
-installed and available on `PATH` before Claude Code or Codex starts the plugin.
-If `uv` was installed with `pip install --user` or the official installer, make
-sure the agent process inherits `~/.local/bin`:
+The plugin starts its MCP servers with `uv tool run` from this repository's
+`main` branch, so [`uv`](https://docs.astral.sh/uv/) must be installed and
+on your `PATH` before Claude Code or Codex starts the plugin:
 
 ```bash
-export PATH="$HOME/.local/bin:$PATH"
+brew install uv        # or: curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-If the host application is launched from a desktop menu, it may not inherit the
-same shell `PATH`. In that case, either start it from a configured shell or use a
-manual MCP registration with the absolute path to `uv`.
+Restart Claude Code or Codex after installing uv so the plugin process
+inherits the updated `PATH`. If the host application is launched from a
+desktop menu rather than a shell, it may not inherit `PATH` at all — in
+that case, use the manual `.mcp.json` form below with an absolute path to
+`uv` instead of relying on `PATH`.
 
 ### Claude Code
 
@@ -91,67 +110,118 @@ plugins. `bigdft` and `bigdft-dev` are skills only -- no `uv`, MCP server, or
 codex plugin marketplace add BigDFT-group/BigDFT-Agents
 ```
 
-Then open `/plugins`, install `irene`, start a new thread, and run `/irene-demo`.
+Then open `/plugins`, install `irene`, start a new thread, and run
+`/irene-demo` to verify the connection end-to-end.
 
-## Manual MCP Config
+### Manual (any MCP-compatible client)
 
-Use this form when `uv` is reliably on `PATH` for the process that starts MCP
-servers:
+Both options below only register the MCP servers — copy `plugins/irene/skills/`
+into wherever your client loads skills from too (this varies by client).
 
-```json
-{
-  "mcpServers": {
-    "irene-hpc": {
-      "command": "uv",
-      "args": ["tool", "run", "--quiet", "--from", "git+https://github.com/BigDFT-group/BigDFT-Agents.git@main#subdirectory=server", "irene-hpc-mcp"],
-      "env": {}
-    },
-    "irene-docs": {
-      "command": "uv",
-      "args": ["tool", "run", "--quiet", "--from", "git+https://github.com/BigDFT-group/BigDFT-Agents.git@main#subdirectory=server", "irene-docs-mcp"],
-      "env": {}
-    }
-  }
-}
-```
+#### Option A — Using Hatch!
 
-For local installs where `uv` is not on `PATH`, replace `"command": "uv"` with
-the absolute executable path, for example:
-
-```json
-{
-  "mcpServers": {
-    "irene-hpc": {
-      "command": "/home/genovese/.local/bin/uv",
-      "args": ["tool", "run", "--quiet", "--from", "git+https://github.com/BigDFT-group/BigDFT-Agents.git@main#subdirectory=server", "irene-hpc-mcp"],
-      "env": {}
-    },
-    "irene-docs": {
-      "command": "/home/genovese/.local/bin/uv",
-      "args": ["tool", "run", "--quiet", "--from", "git+https://github.com/BigDFT-group/BigDFT-Agents.git@main#subdirectory=server", "irene-docs-mcp"],
-      "env": {}
-    }
-  }
-}
-```
-
-Codex can also register the same servers without editing TOML manually:
+[Hatch!](https://github.com/CrackingShells/Hatch) registers MCP servers on any
+supported host from a single command. Install it once, then configure both
+servers — replace `<host>` with your target platform (`claude-code`, `codex`,
+`cursor`, `vscode`, `claude-desktop`, `kiro`, `gemini`, `lmstudio`, or any other
+[supported host](https://github.com/CrackingShells/Hatch#supported-mcp-hosts)):
 
 ```bash
-codex mcp add irene-hpc -- /home/genovese/.local/bin/uv tool run --quiet --from git+https://github.com/BigDFT-group/BigDFT-Agents.git@main#subdirectory=server irene-hpc-mcp
-codex mcp add irene-docs -- /home/genovese/.local/bin/uv tool run --quiet --from git+https://github.com/BigDFT-group/BigDFT-Agents.git@main#subdirectory=server irene-docs-mcp
+pip install hatch-xclam
+
+hatch mcp configure irene-hpc --host <host> \
+  --command uv \
+  --args "tool run --quiet --from git+https://github.com/BigDFT-group/BigDFT-Agents.git@main#subdirectory=server irene-hpc-mcp"
+
+hatch mcp configure irene-docs --host <host> \
+  --command uv \
+  --args "tool run --quiet --from git+https://github.com/BigDFT-group/BigDFT-Agents.git@main#subdirectory=server irene-docs-mcp"
 ```
 
-`laraq` uses the same `#subdirectory=server` package, just a different
-entrypoint (`laraq-mcp`) -- see the `laraq-configuring` skill for its config
-file (`~/.laraq/config.toml`). Codex custom subagents for laraq aren't
-plugin-bundled (Codex has no `agents`-bundling manifest field yet); manual
-`.codex/agents/` mirrors ship at `plugins/laraq/codex-agents/*.toml` with
-copy instructions in that skill.
+To replicate the same configuration to additional hosts:
+
+```bash
+hatch mcp sync --from-host <host> --to-host cursor,vscode
+```
+
+#### Option B — Edit `.mcp.json` directly
+
+Create or edit `.mcp.json` in your project root:
+
+```json
+{
+  "mcpServers": {
+    "irene-hpc": {
+      "command": "uv",
+      "args": ["tool", "run", "--quiet", "--from", "git+https://github.com/BigDFT-group/BigDFT-Agents.git@main#subdirectory=server", "irene-hpc-mcp"],
+      "env": {}
+    },
+    "irene-docs": {
+      "command": "uv",
+      "args": ["tool", "run", "--quiet", "--from", "git+https://github.com/BigDFT-group/BigDFT-Agents.git@main#subdirectory=server", "irene-docs-mcp"],
+      "env": {}
+    }
+  }
+}
+```
+
+If `uv` isn't reliably on `PATH` for the process that starts MCP servers,
+replace `"command": "uv"` with an absolute path (e.g.
+`/home/you/.local/bin/uv`) in either option above.
+
+`laraq` uses the same `#subdirectory=server` package as `irene`, just a
+different entrypoint (`laraq-mcp`) — see the `laraq-configuring` skill for
+its config file (`~/.laraq/config.toml`). Codex custom subagents for laraq
+aren't plugin-bundled (Codex has no `agents`-bundling manifest field yet);
+manual `.codex/agents/` mirrors ship at `plugins/laraq/codex-agents/*.toml`
+with copy instructions in that skill.
 
 ## Verify
 
 ```bash
-uv tool run --from git+https://github.com/BigDFT-group/BigDFT-Agents.git@main#subdirectory=server irene-doctor
-uv tool run --from git+https://github.com/BigDFT-group/BigDFT-Agents.git@main#subdirectory=server laraq-doctor
+uv tool run --quiet --from git+https://github.com/BigDFT-group/BigDFT-Agents.git@main#subdirectory=server irene-doctor
+uv tool run --quiet --from git+https://github.com/BigDFT-group/BigDFT-Agents.git@main#subdirectory=server laraq-doctor
 ```
+
+All lines should read `✓` except possibly embedding (this machine has no
+shared endpoint configured at all, so it's expected to read `!`, not `✗` —
+docs search falls back to BM25 keyword search regardless).
+
+## Development
+
+```bash
+cd server
+uv run python -m irene_mcp.doctor          # health check
+uv run python tests/smoke.py               # read-only MCP stdio test
+uv run python tests/smoke.py --job         # + submits a real tiny job
+```
+
+Rebuilding the docs index after editing `irene_guide.md`:
+
+```bash
+cd server
+uv run python -m irene_mcp.ingest --no-embed
+```
+
+Commit the resulting `irene_mcp/data/docs_index/` (just `chunks.json` — no
+`embeddings.npy`, since no embedding endpoint is configured for Irene).
+
+**No live Irene SSH access was available while porting this plugin onto
+hpc-agent-core** — see `AGENTS.md`'s "hpc-agent-core migration — validation
+status" section for exactly what was and wasn't verified before treating
+this as production-ready.
+
+`laraq` (unrelated to hpc-agent-core):
+
+```bash
+cd server
+uv run pytest tests/laraq_test_*.py -v   # unit tests
+uv run python -m laraq_mcp.doctor        # health check
+uv run python tests/laraq_smoke.py       # read-only MCP stdio test
+uv run python tests/laraq_smoke.py --execute   # + runs a trivial snippet through execute
+```
+
+There's no pre-built embedding index committed — `research()` builds and
+caches one locally (`~/.cache/laraq-mcp/embeddings/<provider>-<model>/`) on
+first use. `server/laraq_mcp/ingest.py` remains available for anyone who
+wants to pre-build and ship one instead.

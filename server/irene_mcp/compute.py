@@ -1,16 +1,75 @@
-"""BridgeBackend for the TGCC Irene supercomputer."""
+"""BridgeBackend for the TGCC Irene supercomputer.
+
+Irene is reached through CEA's Bridge scheduler wrapper — `#MSUB` batch
+directives, `ccc_msub`/`ccc_mpp`/`ccc_macct`/`ccc_mdel`/`ccc_compuse` — not
+raw Slurm. This dialect doesn't fit `hpc_agent_core.compute.slurm.SlurmBackend`
+or `.gridengine.GridEngineBackend`, so per PORTING.md §6's explicit fallback,
+this subclasses `SchedulerBackend` directly rather than forcing a fit.
+
+`parse_exit_code` is reused as-is from core (byte-for-byte the same format).
+`to_epoch` and the seconds-based duration helper stay local: Bridge's
+`ccc_macct` date field uses a dd/mm/yyyy format core's ISO-only `to_epoch`
+doesn't parse, and `#MSUB -T` wants total seconds, not the H:M:S string
+`duration_to_hms` produces for Slurm/Grid Engine.
+"""
 from __future__ import annotations
 
 import re
 import shlex
 import time
+from datetime import datetime
 
-from .. import config
-from ..middleware import run_command, write_remote_file
-from ..models import Job, JobSpec, JobState, JobStatus, map_bridge_state
-from .base import SchedulerBackend, duration_to_seconds, parse_exit_code, render_body, to_epoch
+from hpc_agent_core.compute.base import SchedulerBackend, parse_exit_code
+from hpc_agent_core.middleware import run_command, write_remote_file
+from hpc_agent_core.models import Job, JobSpec, JobState, JobStatus
 
-_jobs_dir = ".irene/jobs"
+from irene_mcp import config  # noqa: F401 -- registers via configure(); this
+# module must not rely on being imported after config by whoever imports it.
+
+_jobs_dir = "agent/jobs"  # per PORTING.md §10: bias agent-created files into
+# one visible directory, not a hidden dotfile one — this was still the
+# pre-migration ".irene/jobs" until caught during a cross-repo demo-skill
+# compliance audit; core's SlurmBackend defaults to this same path, so
+# BridgeBackend (a local subclass, since Bridge doesn't fit either ready-made
+# backend) now matches it explicitly.
+
+# Bridge-native states -> the shared JobState enum. Bridge is CCRT-specific
+# (no other machine in this family uses it), so this mapping stays local
+# rather than being promoted to hpc_agent_core.models alongside
+# map_slurm_state/map_ge_state, which back core-provided scheduler backends
+# this one deliberately isn't.
+_BRIDGE_STATE_MAP = {
+    "PEN": JobState.QUEUED,
+    "PD": JobState.QUEUED,
+    "PENDING": JobState.QUEUED,
+    "CF": JobState.QUEUED,
+    "CONFIGURING": JobState.QUEUED,
+    "RUN": JobState.ACTIVE,
+    "R": JobState.ACTIVE,
+    "R00": JobState.ACTIVE,
+    "R01": JobState.ACTIVE,
+    "RUNNING": JobState.ACTIVE,
+    "COMP": JobState.ACTIVE,
+    "COMPLETING": JobState.ACTIVE,
+    "S": JobState.HELD,
+    "SUSPENDED": JobState.HELD,
+    "COMPLETED": JobState.COMPLETED,
+    "CD": JobState.COMPLETED,
+    "CANCELLED": JobState.CANCELED,
+    "CANCELED": JobState.CANCELED,
+    "CA": JobState.CANCELED,
+    "FAILED": JobState.FAILED,
+    "F": JobState.FAILED,
+    "TIMEOUT": JobState.FAILED,
+    "TO": JobState.FAILED,
+    "OUT_OF_MEMORY": JobState.FAILED,
+    "OOM": JobState.FAILED,
+    "NODE_FAIL": JobState.FAILED,
+}
+
+
+def map_bridge_state(native: str) -> JobState:
+    return _BRIDGE_STATE_MAP.get(native.split()[0].rstrip("+").upper(), JobState.UNKNOWN)
 _GPU_CORES_PER_GPU = {
     "v100": 10,
     "v100l": 36,
@@ -18,6 +77,104 @@ _GPU_CORES_PER_GPU = {
     "v100xl": 72,
     "xlarge": 112,
 }
+
+
+def _run_optional(cmd: str) -> str:
+    """Run a command, returning "" instead of raising on non-zero exit.
+
+    hpc_agent_core.middleware.run_command always raises on failure (the
+    right default for most tools), but Bridge's status commands (ccc_mpp
+    with no jobs, ccc_macct on an unknown id) routinely exit non-zero in
+    otherwise-normal situations — this restores the old tolerant behavior.
+    """
+    try:
+        return run_command(cmd)
+    except RuntimeError:
+        return ""
+
+
+def duration_to_seconds(duration: int | str) -> int:
+    """Convert an IRI duration to seconds for Bridge's #MSUB -T."""
+    if isinstance(duration, int):
+        return duration
+    text = duration.strip()
+    days = 0
+    if "-" in text:
+        day_text, text = text.split("-", 1)
+        days = int(day_text)
+    parts = [int(p) for p in text.split(":")]
+    if len(parts) == 3:
+        h, m, s = parts
+    elif len(parts) == 2:
+        h, m, s = 0, parts[0], parts[1]
+    else:
+        h, m, s = 0, 0, parts[0]
+    return days * 86400 + h * 3600 + m * 60 + s
+
+
+def to_epoch(s: str) -> float | None:
+    """Parse a Bridge accounting datetime string to epoch seconds."""
+    if not s or s in ("Unknown", "N/A", "None", "-"):
+        return None
+    for fmt in ("%d/%m/%Y %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S"):
+        try:
+            return datetime.strptime(s, fmt).timestamp()
+        except ValueError:
+            pass
+    try:
+        return datetime.fromisoformat(s).timestamp()
+    except ValueError:
+        return None
+
+
+def render_body(spec: JobSpec, default_launcher: str | None = None) -> str:
+    """Render the non-header part of an Irene batch script.
+
+    Bridge-specific (container launch via ccc_mprun, BRIDGE_MSUB_PWD as the
+    default working directory) — not core's Slurm/Grid-Engine render_body.
+    """
+    lines: list[str] = [""]
+
+    if spec.directory:
+        lines.append(f"cd {shlex.quote(spec.directory)}")
+    else:
+        lines.append("cd ${BRIDGE_MSUB_PWD}")
+
+    for key, value in spec.environment.items():
+        lines.append(f"export {key}={shlex.quote(value)}")
+
+    if spec.pre_launch:
+        lines.append(spec.pre_launch)
+
+    command = spec.executable
+    if spec.arguments:
+        command += " " + " ".join(shlex.quote(a) for a in spec.arguments)
+
+    if spec.container:
+        c = spec.container
+        ctr_args: list[str] = ["ccc_mprun", "-C", shlex.quote(c.image)]
+        mounts = []
+        for m in c.volume_mounts:
+            mount = f"src={m.source},dst={m.target}"
+            if m.read_only:
+                mount += ",ro"
+            mounts.append(mount)
+        if mounts:
+            ctr_args.append("-E")
+            ctr_args.append(shlex.quote("--ctr-mount " + ":".join(mounts)))
+        command = " ".join(ctr_args) + " -- " + command
+    else:
+        launcher = spec.launcher or default_launcher
+        if launcher:
+            command = launcher + " " + command
+
+    lines.append(command)
+
+    if spec.post_launch:
+        lines.append(spec.post_launch)
+
+    lines.append("")
+    return "\n".join(lines)
 
 
 def _tasks(spec: JobSpec) -> int:
@@ -73,7 +230,7 @@ def _parse_compuse_projects(output: str) -> list[dict[str, str | None]]:
 
 
 def _available_projects() -> list[dict[str, str | None]]:
-    return _parse_compuse_projects(run_command("ccc_compuse", raise_errors=False))
+    return _parse_compuse_projects(_run_optional("ccc_compuse"))
 
 
 def _format_projects(projects: list[dict[str, str | None]]) -> str:
@@ -236,24 +393,39 @@ class BridgeBackend(SchedulerBackend):
 
     def get_statuses(self, job_ids: list[str]) -> list[Job]:
         """Fetch normalized statuses for one or more jobs."""
-        live_jobs = _parse_ccc_mpp(run_command("ccc_mpp -u $USER", raise_errors=False))
+        live_jobs = _parse_ccc_mpp(_run_optional("ccc_mpp -u $USER"))
         by_id = {j.id: j for j in live_jobs}
         jobs: list[Job] = []
         for job_id in job_ids:
             if job_id in by_id:
                 jobs.append(by_id[job_id])
                 continue
-            output = run_command(f"ccc_macct {shlex.quote(job_id)}", raise_errors=False)
+            output = _run_optional(f"ccc_macct {shlex.quote(job_id)}")
             if output.strip():
                 jobs.append(_parse_macct(job_id, output))
         return jobs
 
-    def get_recent_statuses(self, since: str = "unused") -> list[Job]:
-        """Return the current user's pending/running jobs from ccc_mpp."""
-        return _parse_ccc_mpp(run_command("ccc_mpp -u $USER", raise_errors=False))
+    def get_recent_statuses(self, since: str = "now-2days") -> list[Job]:
+        """Return the current user's pending/running jobs from ccc_mpp.
+
+        Bridge has no date-range query for this; `since` is accepted for
+        interface parity with SchedulerBackend but not used — this always
+        returns the live queue, not accounting history.
+        """
+        return _parse_ccc_mpp(_run_optional("ccc_mpp -u $USER"))
 
     def cancel(self, job_id: str) -> Job | str:
         """Cancel with ccc_mdel, then report the job's state when available."""
         run_command(f"ccc_mdel {shlex.quote(job_id)}")
         jobs = self.get_statuses([job_id])
         return jobs[0] if jobs else f"ccc_mdel sent; job {job_id} not found in ccc_mpp/ccc_macct"
+
+
+backend = BridgeBackend()
+
+# hpc_server.py calls these:
+submit = backend.submit
+get_statuses = backend.get_statuses
+get_recent_statuses = backend.get_recent_statuses
+cancel = backend.cancel
+render_script = backend.render_script

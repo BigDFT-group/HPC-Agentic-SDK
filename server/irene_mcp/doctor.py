@@ -2,94 +2,74 @@
 
     python -m irene_mcp.doctor
 
-Checks the config file, SSH access, Bridge command availability, optional
-embedding setup, and the docs index.
+Reuses hpc_agent_core.doctor's config/guide/index/embedding checks, but
+defines its own SSH+scheduler check rather than calling
+hpc_agent_core.doctor.main() directly: that helper's check_ssh() expects a
+single scheduler_probe command whose output *starts with* the scheduler's
+name (e.g. "slurm 24.05.8"), which fits Slurm/Grid Engine but not Bridge —
+there's no one Bridge command shaped like that, just several (ccc_msub,
+ccc_mprun, ccc_mpp, ccc_mpinfo) that need to simply exist. Per
+hpc_agent_core.doctor's own docstring, this is the expected way to diverge:
+reuse the independently-callable check_* functions that fit, write a local
+replacement for the one that doesn't.
 """
-import json
 import sys
 
-from irene_mcp import config
+from hpc_agent_core.doctor import (
+    OK,
+    FAIL,
+    check_config_file,
+    check_docs_guide_bundled,
+    check_docs_index,
+    check_embedding,
+)
+from hpc_agent_core.middleware import run_command
+from irene_mcp import config  # noqa: F401 -- registers via configure()
 
-OK, WARN, FAIL = "OK", "WARN", "FAIL"
-
-
-def check_config_file() -> bool:
-    if not config.CONFIG_PATH.exists():
-        print(f"{WARN} config file: {config.CONFIG_PATH} not found (using env vars / defaults)")
-        return True
-    try:
-        config._file_config()
-    except RuntimeError as e:
-        print(f"{FAIL} config file: {e}")
-        return False
-    print(f"{OK} config file: {config.CONFIG_PATH}")
-    return True
+_BRIDGE_COMMANDS = {"ccc_msub", "ccc_mprun", "ccc_mpp", "ccc_mpinfo"}
 
 
-def check_ssh() -> bool:
-    from irene_mcp.middleware import run_command
+def check_ssh_and_bridge() -> bool:
     host = config.ssh_host()
     try:
-        output = run_command("echo irene-ok && hostname")
+        output = run_command("echo irene-doctor-ok && hostname")
     except Exception as e:
         print(f"{FAIL} ssh ({host}): {e}")
         return False
-    if "irene-ok" not in output:
+    if "irene-doctor-ok" not in output:
         print(f"{FAIL} ssh ({host}): unexpected response: {output[:200]}")
         return False
     print(f"{OK} ssh ({host}): connected to {output.strip().splitlines()[-1]}")
 
-    bridge = run_command("command -v ccc_msub ccc_mprun ccc_mpp ccc_mpinfo", raise_errors=False)
-    found = {line.rsplit('/', 1)[-1] for line in bridge.splitlines() if line.strip()}
-    needed = {"ccc_msub", "ccc_mprun", "ccc_mpp", "ccc_mpinfo"}
-    missing = sorted(needed - found)
+    # Checked one at a time: `command -v` exits non-zero for a single missing
+    # command, and hpc_agent_core.middleware.run_command always raises on
+    # non-zero exit — a single combined "command -v a b c" would raise (and
+    # lose which ones were actually found) the moment any one is missing.
+    missing = []
+    for cmd in sorted(_BRIDGE_COMMANDS):
+        try:
+            run_command(f"command -v {cmd}")
+        except RuntimeError:
+            missing.append(cmd)
     if missing:
         print(f"{FAIL} bridge commands missing: {', '.join(missing)}")
         return False
-    print(f"{OK} bridge commands: {', '.join(sorted(found & needed))}")
-    return True
-
-
-def check_embedding() -> bool:
-    if not (config.EMBED_BASE_URL and config.EMBED_MODEL and config.embed_api_key()):
-        print(f"{WARN} embedding: not configured; docs search uses BM25 keyword matching")
-        return True
-    from irene_mcp.rag.embed import get_client
-    try:
-        vector = get_client().embed(["connectivity probe"])[0]
-    except Exception as e:
-        print(f"{WARN} embedding ({config.EMBED_MODEL} @ {config.EMBED_BASE_URL}): {e}; falling back to BM25")
-        return True
-    print(f"{OK} embedding: {config.EMBED_MODEL} @ {config.EMBED_BASE_URL} (dim {len(vector)})")
-    return True
-
-
-def check_docs_index() -> bool:
-    chunks_path = config.DOCS_INDEX_DIR / "chunks.json"
-    if not chunks_path.exists():
-        print(f"{FAIL} docs index: {chunks_path} missing; run: python -m irene_mcp.rag.ingest --no-embed")
-        return False
-    with open(chunks_path) as f:
-        n_chunks = len(json.load(f))
-    emb_path = config.DOCS_INDEX_DIR / "embeddings.npy"
-    if not emb_path.exists():
-        print(f"{OK} docs index: {n_chunks} chunks (BM25 keyword search)")
-        return True
-    import numpy as np
-    n_vectors = np.load(emb_path).shape[0]
-    if n_vectors != n_chunks:
-        print(f"{FAIL} docs index: {n_chunks} chunks but {n_vectors} embeddings")
-        return False
-    print(f"{OK} docs index: {n_chunks} chunks with embeddings")
+    print(f"{OK} bridge commands: {', '.join(sorted(_BRIDGE_COMMANDS))}")
     return True
 
 
 def main() -> int:
-    results = [check_config_file(), check_ssh(), check_embedding(), check_docs_index()]
+    results = [
+        check_config_file(),
+        check_ssh_and_bridge(),
+        check_docs_guide_bundled(),
+        check_docs_index(),
+        check_embedding(),
+    ]
     if all(results):
         print("\nAll checks passed.")
         return 0
-    print("\nSome checks FAILED; see above.")
+    print("\nSome checks FAILED — see above.")
     return 1
 
 
